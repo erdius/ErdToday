@@ -66,6 +66,17 @@ interface TaskDao {
     @Delete suspend fun removeTagFromTask(ref: TaskTagCrossRef)
     @Query("DELETE FROM task_tag WHERE taskId = :taskId") suspend fun clearTaskTags(taskId: Long)
     @Query("SELECT tagId FROM task_tag WHERE taskId = :taskId") suspend fun tagIdsFor(taskId: Long): List<Long>
+
+    // CalDAV sync
+    /** Rows that need a sync push: locally dirty, or deleted-pending-server-confirmation. */
+    @Query("SELECT * FROM tasks WHERE syncDirty = 1 OR syncPendingDelete = 1")
+    suspend fun tasksNeedingSync(): List<TaskEntity>
+
+    @Query("SELECT * FROM tasks WHERE caldavUid = :uid LIMIT 1")
+    suspend fun getTaskByCaldavUid(uid: String): TaskEntity?
+
+    @Query("SELECT * FROM tasks WHERE caldavHref = :href LIMIT 1")
+    suspend fun getTaskByCaldavHref(href: String): TaskEntity?
 }
 
 @Dao
@@ -80,4 +91,13 @@ interface TagDao {
     @Update suspend fun update(tag: TagEntity)
     @Delete suspend fun delete(tag: TagEntity)
     @Query("SELECT COALESCE(MAX(sortOrder), -1) FROM tags") suspend fun maxSortOrder(): Int
+}
+
+@Dao
+interface SyncStateDao {
+    @Query("SELECT * FROM sync_state WHERE id = 0")
+    suspend fun get(): SyncStateEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun set(state: SyncStateEntity)
 }

@@ -104,9 +104,22 @@ class TaskRepository(
     suspend fun getTask(taskId: Long): TaskWithDetails? = taskDao.getTask(taskId)
 
     // Granular field setters — the detail screen persists each edit immediately (Things3-style).
-    suspend fun setTitle(taskId: Long, title: String) = edit(taskId) { it.copy(title = title) }
+    suspend fun setTitle(taskId: Long, title: String) {
+        val before = taskDao.getTaskEntity(taskId) ?: return
+        val after = before.copy(title = title)
+        taskDao.updateTask(after)
+        markDirtyIfChanged(before, after)
+    }
+
     suspend fun setNotes(taskId: Long, notes: String) = edit(taskId) { it.copy(notes = notes) }
-    suspend fun setDeadline(taskId: Long, date: LocalDate?) = edit(taskId) { it.copy(deadline = date) }
+
+    suspend fun setDeadline(taskId: Long, date: LocalDate?) {
+        val before = taskDao.getTaskEntity(taskId) ?: return
+        val after = before.copy(deadline = date)
+        taskDao.updateTask(after)
+        markDirtyIfChanged(before, after)
+    }
+
     suspend fun setRecurrence(taskId: Long, recurrence: Recurrence?) = edit(taskId) { it.copy(recurrence = recurrence) }
 
     /**
@@ -118,6 +131,7 @@ class TaskRepository(
         val updated = t.copy(scheduledDate = date, reminderTime = if (date == null) null else t.reminderTime)
         taskDao.updateTask(updated)
         syncReminder(updated)
+        markDirtyIfChanged(t, updated)
     }
 
     /**
@@ -140,6 +154,17 @@ class TaskRepository(
         taskDao.updateTask(transform(t))
     }
 
+    /** Marks a row dirty (needing a sync push) only if a *synced* field actually changed. */
+    private suspend fun markDirtyIfChanged(before: TaskEntity, after: TaskEntity) {
+        val changed = before.title != after.title ||
+            before.scheduledDate != after.scheduledDate ||
+            before.deadline != after.deadline ||
+            before.completed != after.completed
+        if (changed && !after.syncDirty) {
+            taskDao.updateTask(after.copy(syncDirty = true))
+        }
+    }
+
     /** Arm the alarm when the to-do has an active future reminder, otherwise make sure none is pending. */
     private fun syncReminder(task: TaskEntity) {
         if (Reminders.shouldSchedule(task.scheduledDate, task.reminderTime, task.completed, now())) {
@@ -156,14 +181,23 @@ class TaskRepository(
 
     suspend fun deleteTask(taskId: Long) {
         reminderScheduler.cancel(taskId)
-        taskDao.deleteTaskById(taskId)
+        val t = taskDao.getTaskEntity(taskId)
+        if (t?.caldavUid != null) {
+            taskDao.updateTask(t.copy(syncPendingDelete = true))
+        } else {
+            taskDao.deleteTaskById(taskId)
+        }
     }
 
     /** Delete a to-do but return a full snapshot first, so it can be [restore]d (undo). */
     suspend fun captureAndDelete(taskId: Long): TaskWithDetails? {
         val snapshot = taskDao.getTask(taskId) ?: return null
         reminderScheduler.cancel(taskId)
-        taskDao.deleteTaskById(taskId)
+        if (snapshot.task.caldavUid != null) {
+            taskDao.updateTask(snapshot.task.copy(syncPendingDelete = true))
+        } else {
+            taskDao.deleteTaskById(taskId)
+        }
         return snapshot
     }
 
@@ -196,6 +230,7 @@ class TaskRepository(
     private suspend fun applyCompletion(task: TaskEntity, completed: Boolean) {
         val updated = task.copy(completed = completed, completedAt = if (completed) Instant.now() else null)
         taskDao.updateTask(updated)
+        markDirtyIfChanged(task, updated)
         // Completing cancels this to-do's reminder; un-completing re-arms it (if still in the future).
         syncReminder(updated)
         if (completed && task.recurrence != null) spawnNextOccurrence(task)
@@ -291,5 +326,7 @@ class TaskRepository(
     suspend fun setTaskTags(taskId: Long, tagIds: List<Long>) {
         taskDao.clearTaskTags(taskId)
         tagIds.forEach { taskDao.addTagToTask(TaskTagCrossRef(taskId, it)) }
+        val t = taskDao.getTaskEntity(taskId) ?: return
+        if (!t.syncDirty) taskDao.updateTask(t.copy(syncDirty = true))
     }
 }
