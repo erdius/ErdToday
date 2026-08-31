@@ -14,11 +14,11 @@ val keystoreProperties = Properties().apply {
 }
 
 android {
-    namespace = "com.mosquishe.today"
+    namespace = "com.erdman.erdtoday"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.mosquishe.today"
+        applicationId = "com.erdman.erdtoday"
         minSdk = 28
         targetSdk = 35
         versionCode = 3

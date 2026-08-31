@@ -4,7 +4,7 @@ A Things3-style to-do app for the Mudita Kompakt, the e-ink Android phone. Built
 Mudita Mindful Design (MMD) components, and it follows the MMD e-ink rules to the letter: pure
 black and white, visible controls only, no animation, a scrollbar on every scroll region.
 
-Package: `com.mosquishe.today`
+Package: `com.erdman.erdtoday`
 
 ## Features
 
