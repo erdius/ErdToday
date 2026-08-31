@@ -432,10 +432,24 @@ Expected: all new tests pass, plus every pre-existing test still passes
 
 - [ ] **Step 8: Build and install, spot-check no regression**
 
+**Uninstall first, do not reinstall-in-place (`-r`) over Task 1's build.**
+This task bumps `@Database`'s `version` to 3, but deliberately defers
+wiring `MIGRATION_2_3` into the builder until Task 7 (see Step 2's note).
+If Task 1's already-installed v2-schema app is upgraded in place, Room
+will require a 2→3 migration path that doesn't exist yet and crash on
+first launch. Installing fresh sidesteps this entirely — Room just
+creates a new v3 database directly, no migration needed:
+
 ```bash
 ./gradlew :app:assembleDebug -q
-adb -s MK20250402537 install -r app/build/outputs/apk/debug/app-debug.apk
+adb -s MK20250402537 uninstall com.erdman.erdtoday
+adb -s MK20250402537 install app/build/outputs/apk/debug/app-debug.apk
 ```
+
+(Tasks 4 and 5's later on-device steps can go back to plain
+`install -r`, since nothing changes `@Database`'s version again until
+Task 7 — only this task's install needs the uninstall-first treatment,
+because it's the one that changes the version number itself.)
 
 On-device: create a task, edit its title, set a deadline, complete it,
 add a tag, edit its notes, add a checklist item — confirm all of this
