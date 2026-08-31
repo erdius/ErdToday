@@ -6,6 +6,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.room.Room
 import com.erdman.erdtoday.TodayApp
 import com.erdman.erdtoday.data.local.TodayDatabase
+import com.erdman.erdtoday.data.credentials.CredentialsManager
 import com.erdman.erdtoday.data.local.TaskWithDetails
 import com.erdman.erdtoday.data.repo.TaskRepository
 import com.erdman.erdtoday.data.settings.SettingsStore
@@ -31,6 +32,8 @@ class AppContainer(context: Context) {
     ).addMigrations(TodayDatabase.MIGRATION_1_2).build()
 
     val settings: SettingsStore = SettingsStore(appContext)
+
+    val credentialsManager: CredentialsManager = CredentialsManager(appContext)
 
     val repository: TaskRepository = TaskRepository(
         taskDao = database.taskDao(),
