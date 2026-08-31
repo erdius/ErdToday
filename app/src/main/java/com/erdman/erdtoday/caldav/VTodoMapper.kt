@@ -61,16 +61,16 @@ object VTodoMapper {
             val colonIdx = line.indexOf(':')
             if (colonIdx < 0) continue
             val nameAndParams = line.substring(0, colonIdx)
-            val value = unescapeText(line.substring(colonIdx + 1))
+            val rawValue = line.substring(colonIdx + 1)
             val name = nameAndParams.substringBefore(';')
             when (name) {
-                "UID" -> uid = value
-                "SUMMARY" -> title = value
-                "DTSTART" -> scheduledDate = parseDateValue(value)
-                "DUE" -> deadline = parseDateValue(value)
-                "STATUS" -> status = value
-                "COMPLETED" -> completedAt = parseUtcStamp(value)
-                "CATEGORIES" -> tagNames = value.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                "UID" -> uid = unescapeText(rawValue)
+                "SUMMARY" -> title = unescapeText(rawValue)
+                "DTSTART" -> scheduledDate = parseDateValue(rawValue)
+                "DUE" -> deadline = parseDateValue(rawValue)
+                "STATUS" -> status = rawValue
+                "COMPLETED" -> completedAt = parseUtcStamp(rawValue)
+                "CATEGORIES" -> tagNames = splitEscapedList(rawValue)
             }
         }
         return ParsedVTodo(
@@ -100,4 +100,31 @@ object VTodoMapper {
     private fun unescapeText(s: String): String = s
         .replace("\\n", "\n").replace("\\N", "\n")
         .replace("\\,", ",").replace("\\;", ";").replace("\\\\", "\\")
+
+    /**
+     * Splits an RFC 5545 escaped, comma-separated value list on unescaped commas only —
+     * a comma preceded by a backslash (part of one item's escaped literal comma) is kept
+     * intact, not treated as a separator. Each resulting token is then unescaped individually.
+     */
+    private fun splitEscapedList(raw: String): List<String> {
+        val tokens = mutableListOf<String>()
+        val current = StringBuilder()
+        var i = 0
+        while (i < raw.length) {
+            val c = raw[i]
+            if (c == '\\' && i + 1 < raw.length) {
+                current.append(c).append(raw[i + 1])
+                i += 2
+            } else if (c == ',') {
+                tokens += current.toString()
+                current.clear()
+                i++
+            } else {
+                current.append(c)
+                i++
+            }
+        }
+        tokens += current.toString()
+        return tokens.map { unescapeText(it) }.map { it.trim() }.filter { it.isNotEmpty() }
+    }
 }
