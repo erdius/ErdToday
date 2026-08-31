@@ -23,6 +23,16 @@ WorkManager.
 
 ## Global Constraints
 
+- The debug build variant has `applicationIdSuffix = ".debug"` (a
+  pre-existing setting from upstream, confirmed on-device during Task
+  1) — the actual installed package for every debug build in this plan
+  is `com.erdman.erdtoday.debug`, not the bare `com.erdman.erdtoday`.
+  Every `adb` command that targets an installed package (`shell monkey
+  -p ...`, `uninstall ...`) must use the `.debug`-suffixed name; `adb
+  install <path-to-apk>` itself is unaffected (it takes a file path,
+  not a package name). Kotlin source code (`package
+  com.erdman.erdtoday...`, imports) is unaffected too — the suffix is
+  purely a Gradle/build-output concern.
 - Fields that sync: `title`, `scheduledDate`, `deadline`, `completed`,
   tags. Fields that do NOT sync, ever, in this plan: `notes`, checklist,
   `recurrence`, `reminderTime`, `sortOrder`.
@@ -115,7 +125,7 @@ Fix any matches found (the manifest usually doesn't need one if it uses
 export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
 ./gradlew :app:assembleDebug -q
 adb -s MK20250402537 install -r app/build/outputs/apk/debug/app-debug.apk
-adb -s MK20250402537 shell monkey -p com.erdman.erdtoday -c android.intent.category.LAUNCHER 1
+adb -s MK20250402537 shell monkey -p com.erdman.erdtoday.debug -c android.intent.category.LAUNCHER 1
 ```
 
 Expected: builds clean, installs, launches to the Today view exactly as
@@ -442,7 +452,7 @@ creates a new v3 database directly, no migration needed:
 
 ```bash
 ./gradlew :app:assembleDebug -q
-adb -s MK20250402537 uninstall com.erdman.erdtoday
+adb -s MK20250402537 uninstall com.erdman.erdtoday.debug
 adb -s MK20250402537 install app/build/outputs/apk/debug/app-debug.apk
 ```
 
@@ -820,7 +830,7 @@ unchanged.
 ```bash
 ./gradlew :app:assembleDebug -q
 adb -s MK20250402537 install -r app/build/outputs/apk/debug/app-debug.apk
-adb -s MK20250402537 shell monkey -p com.erdman.erdtoday -c android.intent.category.LAUNCHER 1
+adb -s MK20250402537 shell monkey -p com.erdman.erdtoday.debug -c android.intent.category.LAUNCHER 1
 ```
 
 Expected: first launch (or after clearing app data) shows the account
@@ -1589,7 +1599,7 @@ git push
 cd ~/Projects/ErdToday
 export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
 ./gradlew clean :app:assembleDebug -q
-adb -s MK20250402537 uninstall com.erdman.erdtoday
+adb -s MK20250402537 uninstall com.erdman.erdtoday.debug
 adb -s MK20250402537 install app/build/outputs/apk/debug/app-debug.apk
 ```
 
