@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.kapt)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 // Release signing is configured from a gitignored keystore.properties (created locally or by CI).
@@ -119,6 +120,17 @@ dependencies {
     // Secure credential storage (Vikunja server URL + API token)
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
+    // Vikunja REST API client. Ktor 2.3.12 (not 3.x) deliberately -- verified against Maven
+    // Central POMs that it depends on kotlin-stdlib 1.8.22 / kotlinx-coroutines-core-jvm 1.7.1 /
+    // okio-jvm 3.7.0, all at or below this project's existing pins, so none of the JVM-21-bytecode
+    // or newer-Kotlin-metadata problems the old dav4jvm-based :caldav module needed workarounds
+    // for apply here. If a build error suggests otherwise, that's new information -- report it,
+    // don't reflexively resurrect the old module-split/version-force pattern.
+    implementation("io.ktor:ktor-client-core:${libs.versions.ktor.get()}")
+    implementation("io.ktor:ktor-client-okhttp:${libs.versions.ktor.get()}")
+    implementation("io.ktor:ktor-client-content-negotiation:${libs.versions.ktor.get()}")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:${libs.versions.ktor.get()}")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:${libs.versions.kotlinxSerialization.get()}")
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
