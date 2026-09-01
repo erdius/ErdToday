@@ -40,7 +40,7 @@ data class VikunjaTaskRead(
 )
 
 /** Talks to one self-hosted Vikunja instance's REST API using a scoped API token. */
-class VikunjaApiClient(baseUrl: String, apiToken: String) {
+class VikunjaApiClient(baseUrl: String, apiToken: String) : VikunjaApi {
 
     private val client = HttpClient(OkHttp) {
         expectSuccess = false // we check status codes ourselves, not via exceptions
@@ -58,13 +58,13 @@ class VikunjaApiClient(baseUrl: String, apiToken: String) {
 
     private val api = "$baseUrl/api/v1"
 
-    suspend fun listProjects(): Result<List<VikunjaProject>> = runCatching {
+    override suspend fun listProjects(): Result<List<VikunjaProject>> = runCatching {
         val resp = client.get("$api/projects")
         requireSuccess(resp)
         resp.body<List<VikunjaProjectJson>>().map { VikunjaProject(it.id, it.title) }
     }
 
-    suspend fun createProject(title: String): Result<VikunjaProject> = runCatching {
+    override suspend fun createProject(title: String): Result<VikunjaProject> = runCatching {
         val resp = client.put("$api/projects") {
             contentType(ContentType.Application.Json)
             setBody(VikunjaProjectJson(title = title))
@@ -74,13 +74,13 @@ class VikunjaApiClient(baseUrl: String, apiToken: String) {
         VikunjaProject(json.id, json.title)
     }
 
-    suspend fun listTasks(projectId: Long): Result<List<VikunjaTaskRead>> = runCatching {
+    override suspend fun listTasks(projectId: Long): Result<List<VikunjaTaskRead>> = runCatching {
         val resp = client.get("$api/projects/$projectId/tasks")
         requireSuccess(resp)
         resp.body<List<VikunjaTaskJson>>().map { toRead(it) }
     }
 
-    suspend fun createTask(projectId: Long, task: VikunjaTaskWrite): Result<VikunjaTaskRead> = runCatching {
+    override suspend fun createTask(projectId: Long, task: VikunjaTaskWrite): Result<VikunjaTaskRead> = runCatching {
         val resp = client.put("$api/projects/$projectId/tasks") {
             contentType(ContentType.Application.Json)
             setBody(toWriteJson(task))
@@ -89,7 +89,7 @@ class VikunjaApiClient(baseUrl: String, apiToken: String) {
         toRead(resp.body<VikunjaTaskJson>())
     }
 
-    suspend fun updateTask(taskId: Long, task: VikunjaTaskWrite): Result<VikunjaTaskRead> = runCatching {
+    override suspend fun updateTask(taskId: Long, task: VikunjaTaskWrite): Result<VikunjaTaskRead> = runCatching {
         val resp = client.post("$api/tasks/$taskId") {
             contentType(ContentType.Application.Json)
             setBody(toWriteJson(task))
@@ -98,18 +98,18 @@ class VikunjaApiClient(baseUrl: String, apiToken: String) {
         toRead(resp.body<VikunjaTaskJson>())
     }
 
-    suspend fun deleteTask(taskId: Long): Result<Unit> = runCatching {
+    override suspend fun deleteTask(taskId: Long): Result<Unit> = runCatching {
         val resp = client.delete("$api/tasks/$taskId")
         requireSuccess(resp)
     }
 
-    suspend fun listLabels(): Result<List<VikunjaLabel>> = runCatching {
+    override suspend fun listLabels(): Result<List<VikunjaLabel>> = runCatching {
         val resp = client.get("$api/labels")
         requireSuccess(resp)
         resp.body<List<VikunjaLabelJson>>().map { VikunjaLabel(it.id, it.title) }
     }
 
-    suspend fun createLabel(title: String): Result<VikunjaLabel> = runCatching {
+    override suspend fun createLabel(title: String): Result<VikunjaLabel> = runCatching {
         val resp = client.put("$api/labels") {
             contentType(ContentType.Application.Json)
             setBody(VikunjaLabelJson(title = title))
@@ -119,7 +119,7 @@ class VikunjaApiClient(baseUrl: String, apiToken: String) {
         VikunjaLabel(json.id, json.title)
     }
 
-    suspend fun addLabelToTask(taskId: Long, labelId: Long): Result<Unit> = runCatching {
+    override suspend fun addLabelToTask(taskId: Long, labelId: Long): Result<Unit> = runCatching {
         val resp = client.put("$api/tasks/$taskId/labels") {
             contentType(ContentType.Application.Json)
             setBody(VikunjaLabelTaskWriteJson(label_id = labelId))
@@ -127,7 +127,7 @@ class VikunjaApiClient(baseUrl: String, apiToken: String) {
         requireSuccess(resp)
     }
 
-    suspend fun removeLabelFromTask(taskId: Long, labelId: Long): Result<Unit> = runCatching {
+    override suspend fun removeLabelFromTask(taskId: Long, labelId: Long): Result<Unit> = runCatching {
         val resp = client.delete("$api/tasks/$taskId/labels/$labelId")
         requireSuccess(resp)
     }
@@ -155,7 +155,7 @@ class VikunjaApiClient(baseUrl: String, apiToken: String) {
     /** Fetches a task's current label ids from the dedicated endpoint. Not needed by [toRead]
      *  (the task read JSON already includes a populated `labels` array -- see its doc comment),
      *  but kept as a standalone utility for callers that only need label ids for one task. */
-    suspend fun fetchLabelIds(taskId: Long): Result<List<Long>> = runCatching {
+    override suspend fun fetchLabelIds(taskId: Long): Result<List<Long>> = runCatching {
         val resp = client.get("$api/tasks/$taskId/labels")
         requireSuccess(resp)
         resp.body<List<VikunjaLabelJson>>().map { it.id }
