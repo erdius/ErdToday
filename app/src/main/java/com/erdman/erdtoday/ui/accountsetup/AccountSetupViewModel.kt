@@ -6,27 +6,27 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** Backs the first-run Fastmail account setup form (email + app-specific password). */
+/** Backs the first-run Vikunja account setup form (server URL + API token). */
 class AccountSetupViewModel(
     private val credentialsManager: CredentialsManager,
 ) : ViewModel() {
 
-    private val _email = MutableStateFlow("")
-    val email: StateFlow<String> = _email.asStateFlow()
+    private val _baseUrl = MutableStateFlow("")
+    val baseUrl: StateFlow<String> = _baseUrl.asStateFlow()
 
-    private val _appPassword = MutableStateFlow("")
-    val appPassword: StateFlow<String> = _appPassword.asStateFlow()
+    private val _apiToken = MutableStateFlow("")
+    val apiToken: StateFlow<String> = _apiToken.asStateFlow()
 
-    fun setEmail(value: String) {
-        _email.value = value
+    fun setBaseUrl(value: String) {
+        _baseUrl.value = value
     }
 
-    fun setAppPassword(value: String) {
-        _appPassword.value = value
+    fun setApiToken(value: String) {
+        _apiToken.value = value
     }
 
     /** Persists the entered credentials; the app shell reacts to [CredentialsManager.credentials]. */
     fun connect() {
-        credentialsManager.save(_email.value, _appPassword.value)
+        credentialsManager.save(_baseUrl.value, _apiToken.value)
     }
 }

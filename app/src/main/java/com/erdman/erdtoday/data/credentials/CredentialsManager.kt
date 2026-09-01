@@ -7,12 +7,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-data class FastmailCredentials(
-    val email: String,
-    val appPassword: String,
+data class VikunjaCredentials(
+    val baseUrl: String,
+    val apiToken: String,
 )
 
-/** Fastmail account email + app-specific password, in encrypted SharedPreferences. */
+/** Self-hosted Vikunja server URL + API token, in encrypted SharedPreferences. */
 class CredentialsManager(context: Context) {
 
     private val masterKey = MasterKey.Builder(context)
@@ -28,21 +28,24 @@ class CredentialsManager(context: Context) {
     )
 
     private val _credentials = MutableStateFlow(readCredentials())
-    val credentials: StateFlow<FastmailCredentials?> = _credentials.asStateFlow()
+    val credentials: StateFlow<VikunjaCredentials?> = _credentials.asStateFlow()
 
-    private fun readCredentials(): FastmailCredentials? {
-        val email = prefs.getString(KEY_EMAIL, null) ?: return null
-        val appPassword = prefs.getString(KEY_APP_PASSWORD, null) ?: return null
-        return FastmailCredentials(email, appPassword)
+    private fun readCredentials(): VikunjaCredentials? {
+        val baseUrl = prefs.getString(KEY_BASE_URL, null) ?: return null
+        val apiToken = prefs.getString(KEY_API_TOKEN, null) ?: return null
+        return VikunjaCredentials(baseUrl, apiToken)
     }
 
-    fun save(email: String, appPassword: String) {
-        val trimmedEmail = email.trim()
+    /** [baseUrl] is normalized here (trimmed, trailing slash stripped) so every caller gets a
+     *  consistent, slash-free base to build request paths onto. */
+    fun save(baseUrl: String, apiToken: String) {
+        val normalizedUrl = baseUrl.trim().trimEnd('/')
+        val trimmedToken = apiToken.trim()
         prefs.edit()
-            .putString(KEY_EMAIL, trimmedEmail)
-            .putString(KEY_APP_PASSWORD, appPassword)
+            .putString(KEY_BASE_URL, normalizedUrl)
+            .putString(KEY_API_TOKEN, trimmedToken)
             .apply()
-        _credentials.value = FastmailCredentials(trimmedEmail, appPassword)
+        _credentials.value = VikunjaCredentials(normalizedUrl, trimmedToken)
     }
 
     fun clear() {
@@ -52,7 +55,7 @@ class CredentialsManager(context: Context) {
 
     companion object {
         private const val PREFS_NAME = "erdtoday_credentials"
-        private const val KEY_EMAIL = "fastmail_email"
-        private const val KEY_APP_PASSWORD = "fastmail_app_password"
+        private const val KEY_BASE_URL = "vikunja_base_url"
+        private const val KEY_API_TOKEN = "vikunja_api_token"
     }
 }

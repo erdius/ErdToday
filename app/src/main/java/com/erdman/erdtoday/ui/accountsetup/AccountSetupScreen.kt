@@ -24,7 +24,7 @@ import com.mudita.mmd.components.text.TextMMD
 import com.mudita.mmd.components.text_field.TextFieldMMD
 import com.mudita.mmd.components.top_app_bar.TopAppBarMMD
 
-/** First-run screen: collect the Fastmail account email + app-specific password, then connect. */
+/** First-run screen: collect the self-hosted Vikunja server URL + API token, then connect. */
 @Composable
 fun AccountSetupScreen() {
     val container = appContainer()
@@ -32,32 +32,32 @@ fun AccountSetupScreen() {
         factory = viewModelCreator { AccountSetupViewModel(container.credentialsManager) },
     )
 
-    val email by vm.email.collectAsState()
-    val appPassword by vm.appPassword.collectAsState()
-    val canConnect = email.isNotBlank() && appPassword.isNotBlank()
+    val baseUrl by vm.baseUrl.collectAsState()
+    val apiToken by vm.apiToken.collectAsState()
+    val canConnect = baseUrl.isNotBlank() && apiToken.isNotBlank()
 
     Column(Modifier.fillMaxSize()) {
-        TopAppBarMMD(title = { TextMMD("Connect Fastmail") })
+        TopAppBarMMD(title = { TextMMD("Connect Vikunja") })
 
         Column(Modifier.fillMaxWidth().padding(16.dp)) {
-            TextMMD("Enter your Fastmail email and an app-specific password to sync to-dos.")
+            TextMMD("Enter your Vikunja server address and an API token to sync to-dos.")
             Spacer(Modifier.height(16.dp))
 
             TextFieldMMD(
-                value = email,
-                onValueChange = vm::setEmail,
+                value = baseUrl,
+                onValueChange = vm::setBaseUrl,
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { TextMMD("Email") },
+                placeholder = { TextMMD("Server URL (e.g. http://192.168.1.213:3456)") },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next),
             )
             Spacer(Modifier.height(12.dp))
 
             TextFieldMMD(
-                value = appPassword,
-                onValueChange = vm::setAppPassword,
+                value = apiToken,
+                onValueChange = vm::setApiToken,
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { TextMMD("App password") },
+                placeholder = { TextMMD("API token") },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
