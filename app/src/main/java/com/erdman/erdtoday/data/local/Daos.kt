@@ -67,16 +67,13 @@ interface TaskDao {
     @Query("DELETE FROM task_tag WHERE taskId = :taskId") suspend fun clearTaskTags(taskId: Long)
     @Query("SELECT tagId FROM task_tag WHERE taskId = :taskId") suspend fun tagIdsFor(taskId: Long): List<Long>
 
-    // CalDAV sync
+    // Vikunja sync
     /** Rows that need a sync push: locally dirty, or deleted-pending-server-confirmation. */
     @Query("SELECT * FROM tasks WHERE syncDirty = 1 OR syncPendingDelete = 1")
     suspend fun tasksNeedingSync(): List<TaskEntity>
 
-    @Query("SELECT * FROM tasks WHERE caldavUid = :uid LIMIT 1")
-    suspend fun getTaskByCaldavUid(uid: String): TaskEntity?
-
-    @Query("SELECT * FROM tasks WHERE caldavHref = :href LIMIT 1")
-    suspend fun getTaskByCaldavHref(href: String): TaskEntity?
+    @Query("SELECT * FROM tasks WHERE vikunjaTaskId = :id LIMIT 1")
+    suspend fun getTaskByVikunjaTaskId(id: Long): TaskEntity?
 }
 
 @Dao

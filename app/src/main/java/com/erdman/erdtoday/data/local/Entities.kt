@@ -24,12 +24,8 @@ data class TaskEntity(
     val completedAt: Instant? = null,
     val createdAt: Instant = Instant.EPOCH,
     val sortOrder: Long = 0,
-    /** CalDAV UID (RFC 5545 UID) once this task has been pushed to Fastmail; null until then. */
-    val caldavUid: String? = null,
-    /** This task's resource path on the Fastmail CalDAV server; null until first successful push. */
-    val caldavHref: String? = null,
-    /** The resource's ETag as of the last successful sync; null for a not-yet-pushed task. */
-    val caldavEtag: String? = null,
+    /** This task's id on the Vikunja server once pushed; null until first successful push. */
+    val vikunjaTaskId: Long? = null,
     /** True if a synced field changed locally since the last successful push. */
     val syncDirty: Boolean = true,
     /** True if deleted locally but the server DELETE hasn't succeeded yet. */
@@ -80,9 +76,9 @@ data class TaskTagCrossRef(
     val tagId: Long,
 )
 
-/** Single-row table holding the CalDAV sync-collection token between sync cycles. */
+/** Single-row table holding the id of the Vikunja project ("ErdToday") every synced task lives in. */
 @Entity(tableName = "sync_state")
 data class SyncStateEntity(
-    @PrimaryKey val id: Int = 0, // always 0 -- this app has exactly one CalDAV collection
-    val syncToken: String? = null,
+    @PrimaryKey val id: Int = 0, // always 0 -- this app syncs against exactly one Vikunja project
+    val vikunjaProjectId: Long? = null,
 )

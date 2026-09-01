@@ -47,13 +47,13 @@ class TaskRepositoryDirtyTrackingTest {
     }
 
     /** Inserts a task already marked clean (syncDirty = false), so a later mutation's effect is observable. */
-    private suspend fun insertCleanTask(caldavUid: String? = null): Long =
+    private suspend fun insertCleanTask(vikunjaTaskId: Long? = null): Long =
         taskDao.insertTask(
             TaskEntity(
                 title = "Test task",
                 createdAt = Instant.EPOCH,
                 syncDirty = false,
-                caldavUid = caldavUid,
+                vikunjaTaskId = vikunjaTaskId,
             ),
         )
 
@@ -145,15 +145,15 @@ class TaskRepositoryDirtyTrackingTest {
     // ---- Delete / soft-delete ------------------------------------------------
 
     @Test
-    fun `deleteTask on a task with no caldavUid deletes it for real`() = runTest {
-        val id = insertCleanTask(caldavUid = null)
+    fun `deleteTask on a task with no vikunjaTaskId deletes it for real`() = runTest {
+        val id = insertCleanTask(vikunjaTaskId = null)
         repository.deleteTask(id)
         assertNull(taskDao.getTaskEntity(id))
     }
 
     @Test
-    fun `deleteTask on a task with a caldavUid soft-deletes it`() = runTest {
-        val id = insertCleanTask(caldavUid = "urn:uid:abc-123")
+    fun `deleteTask on a task with a vikunjaTaskId soft-deletes it`() = runTest {
+        val id = insertCleanTask(vikunjaTaskId = 123L)
         repository.deleteTask(id)
         val t = taskDao.getTaskEntity(id)
         assertNotNull(t)
@@ -260,11 +260,8 @@ class FakeTaskDao : TaskDao {
     override suspend fun tasksNeedingSync(): List<TaskEntity> =
         tasks.values.filter { it.syncDirty || it.syncPendingDelete }
 
-    override suspend fun getTaskByCaldavUid(uid: String): TaskEntity? =
-        tasks.values.firstOrNull { it.caldavUid == uid }
-
-    override suspend fun getTaskByCaldavHref(href: String): TaskEntity? =
-        tasks.values.firstOrNull { it.caldavHref == href }
+    override suspend fun getTaskByVikunjaTaskId(id: Long): TaskEntity? =
+        tasks.values.firstOrNull { it.vikunjaTaskId == id }
 }
 
 /** In-memory [TagDao] fake. */

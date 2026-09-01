@@ -14,7 +14,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         TaskTagCrossRef::class,
         SyncStateEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -40,6 +40,58 @@ abstract class TodayDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE tasks ADD COLUMN syncDirty INTEGER NOT NULL DEFAULT 1")
                 db.execSQL("ALTER TABLE tasks ADD COLUMN syncPendingDelete INTEGER NOT NULL DEFAULT 0")
                 db.execSQL("CREATE TABLE IF NOT EXISTS sync_state (id INTEGER NOT NULL PRIMARY KEY, syncToken TEXT)")
+            }
+        }
+
+        /** v4 replaces CalDAV identity columns with a single Vikunja task id; repurposes
+         *  sync_state's syncToken column for the Vikunja project id.
+         *
+         *  Uses the rebuild-and-copy pattern rather than `ALTER TABLE ... DROP COLUMN`:
+         *  DROP COLUMN needs SQLite 3.35+, but the framework SQLite bundled with real
+         *  devices at this app's minSdk (28) can be far older (confirmed failing with a
+         *  "near DROP: syntax error" on an API 31 device running SQLite 3.32.2) -- so the
+         *  direct approach isn't safe to rely on across the app's supported OS range. */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE tasks_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        title TEXT NOT NULL,
+                        notes TEXT NOT NULL,
+                        scheduledDate INTEGER,
+                        deadline INTEGER,
+                        recurrence TEXT,
+                        reminderTime INTEGER,
+                        completed INTEGER NOT NULL,
+                        completedAt INTEGER,
+                        createdAt INTEGER NOT NULL,
+                        sortOrder INTEGER NOT NULL,
+                        vikunjaTaskId INTEGER,
+                        syncDirty INTEGER NOT NULL,
+                        syncPendingDelete INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO tasks_new (
+                        id, title, notes, scheduledDate, deadline, recurrence, reminderTime,
+                        completed, completedAt, createdAt, sortOrder, vikunjaTaskId, syncDirty, syncPendingDelete
+                    )
+                    SELECT
+                        id, title, notes, scheduledDate, deadline, recurrence, reminderTime,
+                        completed, completedAt, createdAt, sortOrder, NULL, syncDirty, syncPendingDelete
+                    FROM tasks
+                    """.trimIndent(),
+                )
+                db.execSQL("DROP TABLE tasks")
+                db.execSQL("ALTER TABLE tasks_new RENAME TO tasks")
+
+                db.execSQL("CREATE TABLE sync_state_new (id INTEGER NOT NULL PRIMARY KEY, vikunjaProjectId INTEGER)")
+                db.execSQL("INSERT INTO sync_state_new (id, vikunjaProjectId) SELECT id, NULL FROM sync_state")
+                db.execSQL("DROP TABLE sync_state")
+                db.execSQL("ALTER TABLE sync_state_new RENAME TO sync_state")
             }
         }
     }

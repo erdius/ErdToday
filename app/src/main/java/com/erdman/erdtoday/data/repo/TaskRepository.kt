@@ -182,7 +182,7 @@ class TaskRepository(
     suspend fun deleteTask(taskId: Long) {
         reminderScheduler.cancel(taskId)
         val t = taskDao.getTaskEntity(taskId)
-        if (t?.caldavUid != null) {
+        if (t?.vikunjaTaskId != null) {
             taskDao.updateTask(t.copy(syncPendingDelete = true))
         } else {
             taskDao.deleteTaskById(taskId)
@@ -193,7 +193,7 @@ class TaskRepository(
     suspend fun captureAndDelete(taskId: Long): TaskWithDetails? {
         val snapshot = taskDao.getTask(taskId) ?: return null
         reminderScheduler.cancel(taskId)
-        if (snapshot.task.caldavUid != null) {
+        if (snapshot.task.vikunjaTaskId != null) {
             taskDao.updateTask(snapshot.task.copy(syncPendingDelete = true))
         } else {
             taskDao.deleteTaskById(taskId)
