@@ -17,6 +17,18 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
     }
 }
 
+// buildMkCalendarXml (exercised by CalDavDiscoveryTest) calls real dav4jvm code at test-runtime,
+// not just compile-time -- and dav4jvm's jar is genuinely JVM-21 bytecode (see the dependency
+// comment below), so the forked test-worker JVM itself must be >=21, or it fails to *load* the
+// class at all ("UnsupportedClassVersionError ... class file version 65.0"). Gradle's Test task
+// picks its worker JVM independently of both JAVA_HOME and the Gradle daemon's own JVM (it
+// defaults to org.gradle.java.home, a project- or user-level Gradle property, not an environment
+// one) -- so explicitly honor JAVA_HOME here if it's set, rather than silently running tests
+// against whatever the ambient org.gradle.java.home happens to be.
+tasks.withType<Test>().configureEach {
+    System.getenv("JAVA_HOME")?.let { javaHome -> executable = "$javaHome/bin/java" }
+}
+
 dependencies {
     components {
         // dav4jvm 4.0.1's published Gradle module metadata declares its variants "compatible
@@ -39,10 +51,13 @@ dependencies {
         }
     }
 
-    // Exposed in this module's public API (buildCalDavHttpClient's return type, and the Url
-    // inside discoverOrCreateTaskCollection's Result<Url>) so consumers need compile-time access
-    // too -- hence `api`, not `implementation`.
-    api("io.ktor:ktor-client-core:3.5.1")
+    // `implementation`, not `api`: this module's only public surface (CalDavDiscovery) takes
+    // plain String parameters and returns Result<String>, so no Ktor type is ever part of a
+    // public signature -- these stay off :app's compile classpath entirely (still on its runtime
+    // classpath, where they're needed to actually run). That's what lets :app build without
+    // -Xskip-metadata-version-check: :caldav still needs it to read these classes' own newer
+    // Kotlin metadata, but :app never has to.
+    implementation("io.ktor:ktor-client-core:3.5.1")
     implementation("io.ktor:ktor-client-okhttp:3.5.1")
     implementation("io.ktor:ktor-client-auth:3.5.1")
 
@@ -53,4 +68,6 @@ dependencies {
     // 17 toolchain ("bad class file ... has wrong version 65.0, should be 61.0") even though
     // Kotlin's own compiler reads them fine. This module has no kapt, so it never hits that gate.
     implementation("com.github.bitfireAT:dav4jvm:4.0.1")
+
+    testImplementation(libs.junit)
 }

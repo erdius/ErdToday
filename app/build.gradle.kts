@@ -77,14 +77,6 @@ android {
         // MMD components (TopAppBarMMD, ModalBottomSheetMMD, DatePickerMMD, …) wrap experimental
         // Material3 APIs. Opt in project-wide since nearly every screen uses them.
         freeCompilerArgs += "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api"
-        // The :caldav module's Ktor surface (HttpClient, Url) is compiled with a newer Kotlin
-        // (metadata format 2.3.0) than this project's 1.9.22 compiler natively accepts, which
-        // otherwise hard-fails compileDebugKotlin's classpath scan wherever AccountSetupViewModel
-        // references those types. Ktor's own classes are plain JVM 8 bytecode (unlike dav4jvm's,
-        // which is JVM 21 -- see :caldav/build.gradle.kts for why that's isolated into its own
-        // module instead of also needing this flag's kapt-side counterpart here), so skipping the
-        // metadata version gate and reading it anyway is safe.
-        freeCompilerArgs += "-Xskip-metadata-version-check"
     }
 
     buildFeatures {
@@ -120,6 +112,17 @@ android {
 // both: kapt/kotlinc type-check our code against the older, Room-compatible API surface (a strict
 // subset of the newer one, since Kotlin/coroutines evolve additively), while the actual jars
 // bundled into the APK stay at the newer versions dav4jvm's bytecode needs to run.
+//
+// okio is a separate case of the same underlying problem, caught only after sealing Ktor types
+// out of :caldav's public API (see CalDavDiscovery/CalDavHttpClient): :app already depended on
+// okio transitively via androidx.datastore (requesting 3.4.0, metadata-compatible, predating this
+// task entirely) -- but AGP's "consistent resolution" feature forces a module's version to match
+// between a variant's compile and runtime classpaths, and :caldav's Ktor OkHttp engine pulls a
+// newer okio (3.17.0, metadata 2.1.0) onto :app's *runtime* classpath, which then forces that same
+// 3.17.0 back onto :app's *compile* classpath too, breaking compileDebugKotlin's classpath scan.
+// Forced to datastore's own already-declared 3.4.0 for the same reason as kotlin-stdlib/coroutines
+// above: additive API evolution means compiling against the older version is safe, and this is
+// compile-classpath-only so the packaged jar still gets 3.17.0.
 configurations.matching { it.name.endsWith("CompileClasspath") }.configureEach {
     resolutionStrategy {
         force(
@@ -128,6 +131,8 @@ configurations.matching { it.name.endsWith("CompileClasspath") }.configureEach {
             "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:${libs.versions.coroutines.get()}",
             "org.jetbrains.kotlinx:kotlinx-coroutines-android:${libs.versions.coroutines.get()}",
             "org.jetbrains.kotlinx:kotlinx-coroutines-bom:${libs.versions.coroutines.get()}",
+            "com.squareup.okio:okio-jvm:3.4.0",
+            "com.squareup.okio:okio:3.4.0",
         )
     }
 }
@@ -162,7 +167,17 @@ dependencies {
     // ("bad class file ... has wrong version 65.0, should be 61.0") -- unlike Kotlin's own
     // compiler, which reads it fine. Isolating it keeps :app's kapt/Room pipeline untouched by
     // that constraint. See :caldav/build.gradle.kts for the dav4jvm/Ktor dependency declarations.
-    implementation(project(":caldav"))
+    implementation(project(":caldav")) {
+        // xpp3 (dav4jvm's XmlPullParser implementation, needed for :caldav's own JVM unit tests)
+        // duplicates org.xmlpull.v1.XmlPullParser, which Android's platform SDK already provides
+        // and implements natively (android.content.res.XmlResourceParser) -- R8 refuses to
+        // process an app-bundled ("program") class that a platform ("library") class implements:
+        // "Library class android.content.res.XmlResourceParser implements program class
+        // org.xmlpull.v1.XmlPullParser". Excluded here (only from what :app packages, not from
+        // :caldav's own dependency graph) since Android's built-in xmlpull implementation already
+        // satisfies dav4jvm's XmlUtils.newSerializer() lookup at runtime on-device.
+        exclude(group = "org.ogce", module = "xpp3")
+    }
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
