@@ -46,6 +46,10 @@ class AppContainer(context: Context) {
     /** Emits a snapshot of a just-deleted to-do so the shell can offer an Undo snackbar. */
     val deletedTaskEvents = MutableSharedFlow<TaskWithDetails>(extraBufferCapacity = 1)
 
+    /** Emits once per "Sync now" tap (Settings) so the shell can show a quick confirmation
+     *  snackbar -- same event-flow-into-AppShell pattern as [deletedTaskEvents]. */
+    val syncNowEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
     /** (Re)create the reminder notification channel for the currently-chosen sound. */
     fun applyReminderChannel() = applicationScope.launch {
         applyReminderChannel(appContext, settings.reminderSoundValue())
@@ -71,6 +75,13 @@ class AppContainer(context: Context) {
     fun onCredentialsCleared() {
         credentialsManager.clear()
         SyncScheduler.cancelPeriodic(appContext)
+    }
+
+    /** Called from the "Sync now" action in Settings: enqueues an immediate one-time sync and
+     *  signals [syncNowEvents] so the shell can show a quick confirmation snackbar. */
+    fun syncNow() {
+        SyncScheduler.syncNow(appContext)
+        syncNowEvents.tryEmit(Unit)
     }
 
     init {

@@ -154,6 +154,16 @@ fun SettingsScreen(onBack: () -> Unit) {
                     Row(
                         Modifier
                             .fillMaxWidth()
+                            .clickable { container.syncNow() }
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TextMMD("Sync now", modifier = Modifier.weight(1f))
+                    }
+                    HorizontalDividerMMD()
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
                             .clickable { showDisconnectConfirm = true }
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,

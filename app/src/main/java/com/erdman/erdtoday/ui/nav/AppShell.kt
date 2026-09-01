@@ -63,6 +63,12 @@ fun AppShell(deepLinkTaskId: MutableStateFlow<Long?> = remember { MutableStateFl
             if (result == SnackbarResultMMD.ActionPerformed) container.repository.restore(snapshot)
         }
     }
+    LaunchedEffect(Unit) {
+        container.syncNowEvents.collect {
+            // No action label: showSnackbar defaults to a short, auto-dismissing toast.
+            snackbarState.showSnackbar("Sync started")
+        }
+    }
 
     // Open the to-do tapped in a reminder notification, then clear the request so it fires once.
     val pendingTaskId by deepLinkTaskId.collectAsState()
