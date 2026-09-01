@@ -19,13 +19,8 @@ dependencyResolutionManagement {
             url = uri("https://mudita.jfrog.io/artifactory/mmd-release")
             content { includeGroup("com.mudita") }
         }
-        // dav4jvm (bitfireAT's CalDAV/CardDAV library, used by DAVx5) is published via JitPack.
-        // (dav4jvm's Gradle module metadata declares itself Java-21-compatible, which needs a
-        // component metadata rule to work around -- see caldav/build.gradle.kts.)
-        maven("https://jitpack.io")
     }
 }
 
 rootProject.name = "Today"
 include(":app")
-include(":caldav")

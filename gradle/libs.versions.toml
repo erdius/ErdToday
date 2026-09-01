@@ -1,8 +1,7 @@
 [versions]
 # Toolchain — pinned to the MMD-1.0.0-proven matrix (from the MangaShelf reference app).
-# AGP bumped 8.3.0 -> 8.6.1 / Gradle 8.5 -> 8.7 for release-build R8 compatibility with
-# dav4jvm's newer Kotlin metadata (Task 5b); Kotlin/Compose-compiler versions below are
-# unchanged from the MMD-proven matrix.
+# AGP bumped 8.3.0 -> 8.6.1 / Gradle 8.5 -> 8.7 for R8 release-build compatibility (Task 5b);
+# Kotlin/Compose-compiler versions below are unchanged from the MMD-proven matrix.
 agp = "8.6.1"
 kotlin = "1.9.22"
 composeCompiler = "1.5.10"
@@ -51,4 +50,3 @@ compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling", version.ref = 
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }
-kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
