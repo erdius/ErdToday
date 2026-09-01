@@ -39,13 +39,16 @@ fun TaskRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.Top,
     ) {
         CheckboxMMD(checked = t.completed, onCheckedChange = onToggle)
         Spacer(Modifier.width(12.dp))
-        Column(Modifier.fillMaxWidth()) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick),
+        ) {
             TextMMD(
                 t.title.ifBlank { "Untitled" },
                 textDecoration = if (t.completed) TextDecoration.LineThrough else TextDecoration.None,
@@ -63,7 +66,6 @@ fun TaskRow(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onToggleItem(item, !item.done) }
                             .padding(vertical = 1.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -74,6 +76,7 @@ fun TaskRow(
                             fontSize = 14.sp,
                             maxLines = 1,
                             textDecoration = if (item.done) TextDecoration.LineThrough else TextDecoration.None,
+                            modifier = Modifier.clickable { onToggleItem(item, !item.done) },
                         )
                     }
                 }
