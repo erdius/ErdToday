@@ -113,6 +113,18 @@ android {
 // subset of the newer one, since Kotlin/coroutines evolve additively), while the actual jars
 // bundled into the APK stay at the newer versions dav4jvm's bytecode needs to run.
 //
+// kotlinx-coroutines-test is a third case of the same underlying problem, surfaced only after
+// bumping AGP/Gradle in Task 5b: it isn't itself a direct dependency of :caldav, but kotlinx's
+// coroutines artifacts publish a self-aligning constraint against a shared virtual
+// "kotlinx-coroutines-bom" platform, so once :caldav's Ktor/dav4jvm graph requests
+// kotlinx-coroutines-core 1.11.0 anywhere in a *CompileClasspath configuration, Gradle's version
+// alignment pulls kotlinx-coroutines-test up to match -- even though coroutines-core itself is
+// forced back down to 1.8.1 above, leaving coroutines-test alone at a newer, Kotlin-2.x-metadata
+// build that :app's test sources (which call kotlinx-coroutines-test's runTest) can't compile
+// against under this project's Kotlin 1.9.22. Forced down here for the same compile-classpath-only
+// reason as kotlin-stdlib/coroutines-core above -- this dependency is test-only and never packaged,
+// so there's no runtime/device counterpart to worry about (unlike okio/coroutines-core below).
+//
 // okio is a separate case of the same underlying problem, caught only after sealing Ktor types
 // out of :caldav's public API (see CalDavDiscovery/CalDavHttpClient): :app already depended on
 // okio transitively via androidx.datastore (requesting 3.4.0, metadata-compatible, predating this
@@ -131,6 +143,8 @@ configurations.matching { it.name.endsWith("CompileClasspath") }.configureEach {
             "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:${libs.versions.coroutines.get()}",
             "org.jetbrains.kotlinx:kotlinx-coroutines-android:${libs.versions.coroutines.get()}",
             "org.jetbrains.kotlinx:kotlinx-coroutines-bom:${libs.versions.coroutines.get()}",
+            "org.jetbrains.kotlinx:kotlinx-coroutines-test:${libs.versions.coroutines.get()}",
+            "org.jetbrains.kotlinx:kotlinx-coroutines-test-jvm:${libs.versions.coroutines.get()}",
             "com.squareup.okio:okio-jvm:3.4.0",
             "com.squareup.okio:okio:3.4.0",
         )

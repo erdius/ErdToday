@@ -1,6 +1,9 @@
 [versions]
 # Toolchain — pinned to the MMD-1.0.0-proven matrix (from the MangaShelf reference app).
-agp = "8.3.0"
+# AGP bumped 8.3.0 -> 8.6.1 / Gradle 8.5 -> 8.7 for release-build R8 compatibility with
+# dav4jvm's newer Kotlin metadata (Task 5b); Kotlin/Compose-compiler versions below are
+# unchanged from the MMD-proven matrix.
+agp = "8.6.1"
 kotlin = "1.9.22"
 composeCompiler = "1.5.10"
 # AndroidX / Compose
