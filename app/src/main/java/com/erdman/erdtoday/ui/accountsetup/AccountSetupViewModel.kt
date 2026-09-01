@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 /** Backs the first-run Vikunja account setup form (server URL + API token). */
 class AccountSetupViewModel(
     private val credentialsManager: CredentialsManager,
+    private val onConnected: () -> Unit = {},
 ) : ViewModel() {
 
     private val _baseUrl = MutableStateFlow("")
@@ -25,8 +26,11 @@ class AccountSetupViewModel(
         _apiToken.value = value
     }
 
-    /** Persists the entered credentials; the app shell reacts to [CredentialsManager.credentials]. */
+    /** Persists the entered credentials; the app shell reacts to [CredentialsManager.credentials].
+     *  Also kicks off periodic background sync immediately, so the first sync doesn't wait for a
+     *  future app relaunch. */
     fun connect() {
         credentialsManager.save(_baseUrl.value, _apiToken.value)
+        onConnected()
     }
 }

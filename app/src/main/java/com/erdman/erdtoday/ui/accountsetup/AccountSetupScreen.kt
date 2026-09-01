@@ -29,7 +29,9 @@ import com.mudita.mmd.components.top_app_bar.TopAppBarMMD
 fun AccountSetupScreen() {
     val container = appContainer()
     val vm: AccountSetupViewModel = viewModel(
-        factory = viewModelCreator { AccountSetupViewModel(container.credentialsManager) },
+        factory = viewModelCreator {
+            AccountSetupViewModel(container.credentialsManager, onConnected = container::onCredentialsSaved)
+        },
     )
 
     val baseUrl by vm.baseUrl.collectAsState()

@@ -12,6 +12,7 @@ import com.erdman.erdtoday.data.repo.TaskRepository
 import com.erdman.erdtoday.data.settings.SettingsStore
 import com.erdman.erdtoday.reminder.AlarmReminderScheduler
 import com.erdman.erdtoday.reminder.applyReminderChannel
+import com.erdman.erdtoday.sync.SyncScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -25,11 +26,11 @@ class AppContainer(context: Context) {
     /** Outlives any screen — used for fire-and-forget cleanup (e.g. discarding empty drafts). */
     val applicationScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private val database: TodayDatabase = Room.databaseBuilder(
+    val database: TodayDatabase = Room.databaseBuilder(
         appContext,
         TodayDatabase::class.java,
         "today.db",
-    ).addMigrations(TodayDatabase.MIGRATION_1_2).build()
+    ).addMigrations(TodayDatabase.MIGRATION_1_2, TodayDatabase.MIGRATION_2_3, TodayDatabase.MIGRATION_3_4).build()
 
     val settings: SettingsStore = SettingsStore(appContext)
 
@@ -56,6 +57,13 @@ class AppContainer(context: Context) {
         applyReminderChannel(appContext, settings.reminderSoundValue())
     }
 
+    /** Called once Vikunja credentials are first saved (account setup) so periodic sync starts
+     *  immediately rather than waiting for the next app relaunch. Synchronous -- WorkManager's
+     *  enqueue call needs no coroutine. */
+    fun onCredentialsSaved() {
+        SyncScheduler.schedulePeriodic(appContext)
+    }
+
     init {
         applicationScope.launch {
             // Sweep blank drafts left over from a previous force-quit.
@@ -64,6 +72,9 @@ class AppContainer(context: Context) {
             repository.pruneLogbook()
             // Re-arm reminders: alarms are cleared on reboot, app update, and force-stop.
             repository.rescheduleAllReminders()
+            if (credentialsManager.credentials.value != null) {
+                SyncScheduler.schedulePeriodic(appContext)
+            }
         }
     }
 }

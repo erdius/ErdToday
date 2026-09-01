@@ -8,12 +8,25 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import java.time.Instant
+import java.time.OffsetDateTime
 
-/** RFC3339 <-> [Instant], as Vikunja (a Go server) encodes every timestamp field. */
+/** RFC3339 <-> [Instant], as Vikunja (a Go server) encodes every timestamp field.
+ *
+ *  Deserialization deliberately goes through [OffsetDateTime.parse] rather than [Instant.parse]:
+ *  `Instant.parse` uses `DateTimeFormatter.ISO_INSTANT`, which requires a literal `Z` UTC
+ *  designator and rejects any string with an explicit numeric offset. Vikunja's Go backend emits
+ *  RFC3339 timestamps in the server process's local zone (verified live against the real
+ *  dev/verification server: `created`/`updated`/`due_date` came back as e.g.
+ *  `2026-09-04T20:00:00-04:00` and `2026-09-01T08:46:07.491093359-04:00`), not always the `Z`
+ *  sentinel -- only [VIKUNJA_ZERO_TIME]'s Go zero-value happens to use `Z`. `Instant.parse`
+ *  threw `DateTimeParseException` on every real (non-sentinel) timestamp, silently failing
+ *  every push and pull. `OffsetDateTime.parse` accepts both the `Z` designator and explicit
+ *  `+HH:MM`/`-HH:MM` offsets (per `DateTimeFormatter.ISO_OFFSET_DATE_TIME`), so this covers both
+ *  the zero-sentinel and every real server timestamp. */
 object InstantIso8601Serializer : KSerializer<Instant> {
     override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("Instant", PrimitiveKind.STRING)
     override fun serialize(encoder: Encoder, value: Instant) = encoder.encodeString(value.toString())
-    override fun deserialize(decoder: Decoder): Instant = Instant.parse(decoder.decodeString())
+    override fun deserialize(decoder: Decoder): Instant = OffsetDateTime.parse(decoder.decodeString()).toInstant()
 }
 
 /** Go's zero time.Time, the sentinel Vikunja sends for "unset" on fields with no `omitempty`. */

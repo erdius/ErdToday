@@ -117,6 +117,9 @@ dependencies {
     implementation(libs.room.ktx)
     kapt(libs.room.compiler)
 
+    // Periodic background Vikunja sync
+    implementation(libs.androidx.work.runtime.ktx)
+
     // Secure credential storage (Vikunja server URL + API token)
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
