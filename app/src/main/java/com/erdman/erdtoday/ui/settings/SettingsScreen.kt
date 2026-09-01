@@ -34,6 +34,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.erdman.erdtoday.data.settings.SettingsStore
 import com.erdman.erdtoday.di.appContainer
 import com.erdman.erdtoday.di.viewModelCreator
+import com.erdman.erdtoday.ui.common.ConfirmSheet
 import com.erdman.erdtoday.ui.common.TimeSheet
 import com.erdman.erdtoday.util.Dates
 import com.mudita.mmd.components.chips.FilterChipMMD
@@ -62,6 +63,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     var newTag by remember { mutableStateOf("") }
     var showSoundSheet by remember { mutableStateOf(false) }
     var showDayStartSheet by remember { mutableStateOf(false) }
+    var showDisconnectConfirm by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
         TopAppBarMMD(
@@ -146,6 +148,22 @@ fun SettingsScreen(onBack: () -> Unit) {
                 }
             }
 
+            item {
+                Column {
+                    SectionLabel("Vikunja account")
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { showDisconnectConfirm = true }
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TextMMD("Disconnect Vikunja", modifier = Modifier.weight(1f))
+                    }
+                    HorizontalDividerMMD()
+                }
+            }
+
             // Tags header: label + the add-tag field (keeps it off the tiny-item list).
             item {
                 Column {
@@ -201,6 +219,17 @@ fun SettingsScreen(onBack: () -> Unit) {
             current = reminderSound,
             onResult = { container.setReminderSound(it) },
             onDismiss = { showSoundSheet = false },
+        )
+    }
+
+    if (showDisconnectConfirm) {
+        ConfirmSheet(
+            title = "Disconnect Vikunja?",
+            message = "This stops background sync and clears your saved server URL and API " +
+                "token. You'll need to reconnect to sync again.",
+            confirmLabel = "Disconnect",
+            onConfirm = { container.onCredentialsCleared(); showDisconnectConfirm = false },
+            onDismiss = { showDisconnectConfirm = false },
         )
     }
 }

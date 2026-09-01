@@ -274,6 +274,11 @@ class FakeVikunjaApi : VikunjaApi {
     /** taskIds for which [updateTask] should simulate a server-side failure. */
     val updateTaskShouldFail = mutableSetOf<Long>()
 
+    var closeCalls = 0
+    override fun close() {
+        closeCalls++
+    }
+
     override suspend fun listProjects(): Result<List<VikunjaProject>> {
         listProjectsCalls++
         return Result.success(projects.toList())

@@ -18,4 +18,9 @@ object SyncScheduler {
         WorkManager.getInstance(context)
             .enqueueUniquePeriodicWork(WORK_NAME, ExistingPeriodicWorkPolicy.KEEP, request)
     }
+
+    /** Cancels the scheduled periodic sync (e.g. when the user disconnects Vikunja). */
+    fun cancelPeriodic(context: Context) {
+        WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
+    }
 }

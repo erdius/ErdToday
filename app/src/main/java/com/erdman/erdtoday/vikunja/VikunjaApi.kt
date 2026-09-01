@@ -5,7 +5,7 @@ package com.erdman.erdtoday.vikunja
  * purely so tests can supply a fake implementation instead of driving [VikunjaApiClient]'s real
  * network calls. [VikunjaApiClient] is the only production implementation.
  */
-interface VikunjaApi {
+interface VikunjaApi : java.io.Closeable {
     suspend fun listProjects(): Result<List<VikunjaProject>>
     suspend fun createProject(title: String): Result<VikunjaProject>
     suspend fun listTasks(projectId: Long): Result<List<VikunjaTaskRead>>

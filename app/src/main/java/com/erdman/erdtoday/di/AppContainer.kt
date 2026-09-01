@@ -64,6 +64,15 @@ class AppContainer(context: Context) {
         SyncScheduler.schedulePeriodic(appContext)
     }
 
+    /** Called when the user disconnects Vikunja from Settings: clears the stored credentials
+     *  (which flips [MainActivity] back to [com.erdman.erdtoday.ui.accountsetup.AccountSetupScreen]
+     *  via its existing collectAsState on [credentialsManager]) and cancels the periodic sync
+     *  schedule so a stale worker doesn't keep firing against now-cleared credentials. */
+    fun onCredentialsCleared() {
+        credentialsManager.clear()
+        SyncScheduler.cancelPeriodic(appContext)
+    }
+
     init {
         applicationScope.launch {
             // Sweep blank drafts left over from a previous force-quit.
