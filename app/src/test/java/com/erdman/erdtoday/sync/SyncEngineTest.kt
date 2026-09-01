@@ -207,6 +207,32 @@ class SyncEngineTest {
         assertEquals(0, api.createProjectCalls)
         assertEquals(projectId, api.lastListTasksProjectId)
     }
+
+    @Test
+    fun `sync - cold start finds-or-creates and persists the ErdToday project, then reuses it on the next sync`() = runTest {
+        // Unlike every other case, start with NO sync_state row at all -- the real first-ever-
+        // install shape -- so resolveProjectId() actually falls through to
+        // VikunjaProjectSetup.findOrCreateErdTodayProject on this sync() call.
+        syncStateDao.state = null
+
+        val first = engine.sync()
+
+        assertTrue(first is SyncResult.Success)
+        assertEquals(1, api.listProjectsCalls)
+        assertEquals(1, api.createProjectCalls)
+        val createdProjectId = api.projects.single().id
+        assertEquals(createdProjectId, syncStateDao.state?.vikunjaProjectId)
+
+        // Second sync: the resolved id is now persisted, so this must reuse it via SyncStateDao
+        // rather than calling findOrCreateErdTodayProject (and therefore listProjects/
+        // createProject) again -- the write-then-reuse round trip.
+        val second = engine.sync()
+
+        assertTrue(second is SyncResult.Success)
+        assertEquals(1, api.listProjectsCalls)
+        assertEquals(1, api.createProjectCalls)
+        assertEquals(createdProjectId, syncStateDao.state?.vikunjaProjectId)
+    }
 }
 
 /** In-memory [SyncStateDao] fake -- a single mutable nullable field, matching the real table's
