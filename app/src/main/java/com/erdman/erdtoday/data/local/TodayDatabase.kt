@@ -50,7 +50,18 @@ abstract class TodayDatabase : RoomDatabase() {
          *  DROP COLUMN needs SQLite 3.35+, but the framework SQLite bundled with real
          *  devices at this app's minSdk (28) can be far older (confirmed failing with a
          *  "near DROP: syntax error" on an API 31 device running SQLite 3.32.2) -- so the
-         *  direct approach isn't safe to rely on across the app's supported OS range. */
+         *  direct approach isn't safe to rely on across the app's supported OS range.
+         *
+         *  `DROP TABLE tasks` below is safe against checklist_items/task_tag's
+         *  `ON DELETE CASCADE` foreign keys into tasks(id) ONLY because this app never
+         *  enables SQLite foreign-key enforcement (no `setForeignKeyConstraintsEnabled`
+         *  anywhere in AppContainer's Room.databaseBuilder call, and the platform default
+         *  is off) -- with enforcement on, SQLite's implicit DELETE-before-DROP would fire
+         *  those cascades before tasks_new's copy of the same ids exists under the final
+         *  `tasks` name, wiping the child rows. Verified empirically (row counts unchanged
+         *  across a real on-device migration) but that empirical result is fragile: if this
+         *  app ever turns FK enforcement on, this migration needs `PRAGMA foreign_keys=OFF`
+         *  wrapped around the DROP/RENAME pair, or it will silently delete data. */
         val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
