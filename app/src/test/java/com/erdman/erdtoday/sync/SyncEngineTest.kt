@@ -1,7 +1,7 @@
 package com.erdman.erdtoday.sync
 
-import com.erdman.erdtoday.data.local.SyncStateDao
-import com.erdman.erdtoday.data.local.SyncStateEntity
+import com.erdman.erdtoday.data.local.ProjectDao
+import com.erdman.erdtoday.data.local.ProjectEntity
 import com.erdman.erdtoday.data.local.TagEntity
 import com.erdman.erdtoday.data.local.TaskEntity
 import com.erdman.erdtoday.data.local.TaskTagCrossRef
@@ -35,7 +35,7 @@ class SyncEngineTest {
 
     private lateinit var taskDao: FakeTaskDao
     private lateinit var tagDao: FakeTagDao
-    private lateinit var syncStateDao: FakeSyncStateDao
+    private lateinit var projectDao: FakeProjectDao
     private lateinit var api: FakeVikunjaApi
     private lateinit var engine: SyncEngine
 
@@ -45,13 +45,13 @@ class SyncEngineTest {
     fun setUp() {
         taskDao = FakeTaskDao()
         tagDao = FakeTagDao()
-        syncStateDao = FakeSyncStateDao()
+        projectDao = FakeProjectDao()
         api = FakeVikunjaApi()
-        engine = SyncEngine(taskDao, tagDao, syncStateDao, api)
+        engine = SyncEngine(taskDao, tagDao, projectDao, api)
         // Most cases care about push/pull behavior, not project resolution -- pre-seed a
-        // resolved project id so resolveProjectId() short-circuits via SyncStateDao. The one
+        // resolved project id so resolveProjectId() short-circuits via ProjectDao. The one
         // case that exercises project resolution itself (below) overrides this.
-        syncStateDao.state = SyncStateEntity(vikunjaProjectId = projectId)
+        projectDao.projectsByTitle["ErdToday"] = ProjectEntity(vikunjaProjectId = projectId, title = "ErdToday")
     }
 
     @Test
@@ -199,7 +199,7 @@ class SyncEngineTest {
 
     @Test
     fun `sync - resolveProjectId reuses a stored vikunjaProjectId rather than calling findOrCreateErdTodayProject again`() = runTest {
-        // setUp() already seeded SyncStateDao with a project id -- assert that resolving it does
+        // setUp() already seeded ProjectDao with a project id -- assert that resolving it does
         // NOT fall through to VikunjaProjectSetup's listProjects/createProject calls.
         engine.sync()
 
@@ -210,10 +210,10 @@ class SyncEngineTest {
 
     @Test
     fun `sync - cold start finds-or-creates and persists the ErdToday project, then reuses it on the next sync`() = runTest {
-        // Unlike every other case, start with NO sync_state row at all -- the real first-ever-
+        // Unlike every other case, start with NO projects row at all -- the real first-ever-
         // install shape -- so resolveProjectId() actually falls through to
         // VikunjaProjectSetup.findOrCreateErdTodayProject on this sync() call.
-        syncStateDao.state = null
+        projectDao.projectsByTitle.clear()
 
         val first = engine.sync()
 
@@ -221,9 +221,9 @@ class SyncEngineTest {
         assertEquals(1, api.listProjectsCalls)
         assertEquals(1, api.createProjectCalls)
         val createdProjectId = api.projects.single().id
-        assertEquals(createdProjectId, syncStateDao.state?.vikunjaProjectId)
+        assertEquals(createdProjectId, projectDao.projectsByTitle["ErdToday"]?.vikunjaProjectId)
 
-        // Second sync: the resolved id is now persisted, so this must reuse it via SyncStateDao
+        // Second sync: the resolved id is now persisted, so this must reuse it via ProjectDao
         // rather than calling findOrCreateErdTodayProject (and therefore listProjects/
         // createProject) again -- the write-then-reuse round trip.
         val second = engine.sync()
@@ -231,18 +231,26 @@ class SyncEngineTest {
         assertTrue(second is SyncResult.Success)
         assertEquals(1, api.listProjectsCalls)
         assertEquals(1, api.createProjectCalls)
-        assertEquals(createdProjectId, syncStateDao.state?.vikunjaProjectId)
+        assertEquals(createdProjectId, projectDao.projectsByTitle["ErdToday"]?.vikunjaProjectId)
     }
 }
 
-/** In-memory [SyncStateDao] fake -- a single mutable nullable field, matching the real table's
- *  single-row (id = 0) shape. */
-class FakeSyncStateDao : SyncStateDao {
-    var state: SyncStateEntity? = null
-    override suspend fun get(): SyncStateEntity? = state
-    override suspend fun set(state: SyncStateEntity) {
-        this.state = state
+/** In-memory [ProjectDao] fake -- keyed by title, matching how [SyncEngine] resolves/caches the
+ *  "ErdToday" project. */
+class FakeProjectDao : ProjectDao {
+    val projectsByTitle = mutableMapOf<String, ProjectEntity>()
+
+    override fun observeProjects(): kotlinx.coroutines.flow.Flow<List<ProjectEntity>> =
+        throw UnsupportedOperationException("not used by SyncEngineTest")
+
+    override suspend fun upsertProjects(projects: List<ProjectEntity>) {
+        projects.forEach { projectsByTitle[it.title] = it }
     }
+
+    override suspend fun getByVikunjaProjectId(id: Long): ProjectEntity? =
+        projectsByTitle.values.firstOrNull { it.vikunjaProjectId == id }
+
+    override suspend fun getByTitle(title: String): ProjectEntity? = projectsByTitle[title]
 }
 
 /** In-memory [VikunjaApi] fake driving [SyncEngine]'s tests without any real network calls.

@@ -26,6 +26,8 @@ data class TaskEntity(
     val sortOrder: Long = 0,
     /** This task's id on the Vikunja server once pushed; null until first successful push. */
     val vikunjaTaskId: Long? = null,
+    /** Which Vikunja project this task lives in, once synced. Null until first successful push. */
+    val vikunjaProjectId: Long? = null,
     /** True if a synced field changed locally since the last successful push. */
     val syncDirty: Boolean = true,
     /** True if deleted locally but the server DELETE hasn't succeeded yet. */
@@ -76,9 +78,11 @@ data class TaskTagCrossRef(
     val tagId: Long,
 )
 
-/** Single-row table holding the id of the Vikunja project ("ErdToday") every synced task lives in. */
-@Entity(tableName = "sync_state")
-data class SyncStateEntity(
-    @PrimaryKey val id: Int = 0, // always 0 -- this app syncs against exactly one Vikunja project
-    val vikunjaProjectId: Long? = null,
+/** A local mirror of one Vikunja project. Kept in sync with the server's real project list. */
+@Entity(tableName = "projects", indices = [Index(value = ["vikunjaProjectId"], unique = true)])
+data class ProjectEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val vikunjaProjectId: Long,
+    val title: String,
+    val hexColor: String = "",
 )

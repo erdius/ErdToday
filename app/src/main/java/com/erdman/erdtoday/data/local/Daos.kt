@@ -9,6 +9,7 @@ import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 import java.time.Instant
+import java.time.LocalDate
 
 @Dao
 interface TaskDao {
@@ -74,6 +75,23 @@ interface TaskDao {
 
     @Query("SELECT * FROM tasks WHERE vikunjaTaskId = :id LIMIT 1")
     suspend fun getTaskByVikunjaTaskId(id: Long): TaskEntity?
+
+    // Multi-project views
+    @Transaction
+    @Query("SELECT * FROM tasks WHERE completed = 0 AND deadline = :today")
+    fun observeDueToday(today: LocalDate): Flow<List<TaskWithDetails>>
+
+    @Transaction
+    @Query("SELECT * FROM tasks WHERE completed = 0 AND deadline IS NOT NULL AND deadline > :after")
+    fun observeDueSoon(after: LocalDate): Flow<List<TaskWithDetails>>
+
+    @Transaction
+    @Query("SELECT * FROM tasks WHERE completed = 0")
+    fun observeAllOpen(): Flow<List<TaskWithDetails>>
+
+    @Transaction
+    @Query("SELECT * FROM tasks WHERE vikunjaProjectId = :id")
+    fun observeByVikunjaProjectId(id: Long): Flow<List<TaskWithDetails>>
 }
 
 @Dao
@@ -91,10 +109,16 @@ interface TagDao {
 }
 
 @Dao
-interface SyncStateDao {
-    @Query("SELECT * FROM sync_state WHERE id = 0")
-    suspend fun get(): SyncStateEntity?
+interface ProjectDao {
+    @Query("SELECT * FROM projects ORDER BY title COLLATE NOCASE")
+    fun observeProjects(): Flow<List<ProjectEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun set(state: SyncStateEntity)
+    suspend fun upsertProjects(projects: List<ProjectEntity>)
+
+    @Query("SELECT * FROM projects WHERE vikunjaProjectId = :id LIMIT 1")
+    suspend fun getByVikunjaProjectId(id: Long): ProjectEntity?
+
+    @Query("SELECT * FROM projects WHERE title = :title COLLATE NOCASE LIMIT 1")
+    suspend fun getByTitle(title: String): ProjectEntity?
 }

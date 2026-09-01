@@ -16,7 +16,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
             val engine = SyncEngine(
                 taskDao = container.database.taskDao(),
                 tagDao = container.database.tagDao(),
-                syncStateDao = container.database.syncStateDao(),
+                projectDao = container.database.projectDao(),
                 api = api,
             )
             when (val result = engine.sync()) {

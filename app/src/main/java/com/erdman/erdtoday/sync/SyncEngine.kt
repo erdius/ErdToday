@@ -1,7 +1,7 @@
 package com.erdman.erdtoday.sync
 
-import com.erdman.erdtoday.data.local.SyncStateDao
-import com.erdman.erdtoday.data.local.SyncStateEntity
+import com.erdman.erdtoday.data.local.ProjectDao
+import com.erdman.erdtoday.data.local.ProjectEntity
 import com.erdman.erdtoday.data.local.TagDao
 import com.erdman.erdtoday.data.local.TaskDao
 import com.erdman.erdtoday.data.local.TaskEntity
@@ -25,9 +25,13 @@ sealed class SyncResult {
 class SyncEngine(
     private val taskDao: TaskDao,
     private val tagDao: TagDao,
-    private val syncStateDao: SyncStateDao,
+    private val projectDao: ProjectDao,
     private val api: VikunjaApi,
 ) {
+    companion object {
+        private const val ERD_TODAY_PROJECT_TITLE = "ErdToday"
+    }
+
     suspend fun sync(): SyncResult {
         val projectId = resolveProjectId() ?: return SyncResult.Failure("Could not resolve the ErdToday Vikunja project")
         val pushed = push(projectId)
@@ -39,10 +43,14 @@ class SyncEngine(
         }
     }
 
+    /** Still single-project (the "ErdToday" project) -- expanding this to sync every Vikunja
+     *  project is a later task's job. The local cache for the resolved id now lives in
+     *  [ProjectDao]'s `projects` table (keyed by title) rather than the old single-row
+     *  `sync_state` table. */
     private suspend fun resolveProjectId(): Long? {
-        syncStateDao.get()?.vikunjaProjectId?.let { return it }
+        projectDao.getByTitle(ERD_TODAY_PROJECT_TITLE)?.vikunjaProjectId?.let { return it }
         val id = VikunjaProjectSetup.findOrCreateErdTodayProject(api).getOrNull() ?: return null
-        syncStateDao.set(SyncStateEntity(vikunjaProjectId = id))
+        projectDao.upsertProjects(listOf(ProjectEntity(vikunjaProjectId = id, title = ERD_TODAY_PROJECT_TITLE)))
         return id
     }
 

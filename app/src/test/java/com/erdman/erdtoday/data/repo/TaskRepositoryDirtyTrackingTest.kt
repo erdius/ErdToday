@@ -262,6 +262,21 @@ class FakeTaskDao : TaskDao {
 
     override suspend fun getTaskByVikunjaTaskId(id: Long): TaskEntity? =
         tasks.values.firstOrNull { it.vikunjaTaskId == id }
+
+    override fun observeDueToday(today: java.time.LocalDate): Flow<List<TaskWithDetails>> =
+        flowOf(tasks.values.filter { !it.completed && it.deadline == today }.mapNotNull { snapshot(it.id) })
+
+    override fun observeDueSoon(after: java.time.LocalDate): Flow<List<TaskWithDetails>> =
+        flowOf(
+            tasks.values.filter { val d = it.deadline; !it.completed && d != null && d > after }
+                .mapNotNull { snapshot(it.id) },
+        )
+
+    override fun observeAllOpen(): Flow<List<TaskWithDetails>> =
+        flowOf(tasks.values.filter { !it.completed }.mapNotNull { snapshot(it.id) })
+
+    override fun observeByVikunjaProjectId(id: Long): Flow<List<TaskWithDetails>> =
+        flowOf(tasks.values.filter { it.vikunjaProjectId == id }.mapNotNull { snapshot(it.id) })
 }
 
 /** In-memory [TagDao] fake. */

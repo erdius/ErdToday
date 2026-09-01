@@ -12,16 +12,16 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ChecklistItemEntity::class,
         TagEntity::class,
         TaskTagCrossRef::class,
-        SyncStateEntity::class,
+        ProjectEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
 abstract class TodayDatabase : RoomDatabase() {
     abstract fun taskDao(): TaskDao
     abstract fun tagDao(): TagDao
-    abstract fun syncStateDao(): SyncStateDao
+    abstract fun projectDao(): ProjectDao
 
     companion object {
         /** v2 adds the nullable reminder time-of-day (second-of-day) column to tasks. */
@@ -103,6 +103,32 @@ abstract class TodayDatabase : RoomDatabase() {
                 db.execSQL("INSERT INTO sync_state_new (id, vikunjaProjectId) SELECT id, NULL FROM sync_state")
                 db.execSQL("DROP TABLE sync_state")
                 db.execSQL("ALTER TABLE sync_state_new RENAME TO sync_state")
+            }
+        }
+
+        /** v5 adds a local mirror of Vikunja's project list (`projects`) and tags each task with
+         *  which project it lives in, replacing the old single-project `sync_state` cache with a
+         *  proper per-project table -- the schema foundation for syncing every Vikunja project
+         *  instead of one hardcoded project.
+         *
+         *  `DROP TABLE IF EXISTS sync_state` is safe for the same reason documented on
+         *  [MIGRATION_3_4] above: this app never enables SQLite foreign-key enforcement, and
+         *  nothing has a foreign key into sync_state regardless. */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS projects (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        vikunjaProjectId INTEGER NOT NULL,
+                        title TEXT NOT NULL,
+                        hexColor TEXT NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_projects_vikunjaProjectId ON projects(vikunjaProjectId)")
+                db.execSQL("ALTER TABLE tasks ADD COLUMN vikunjaProjectId INTEGER")
+                db.execSQL("DROP TABLE IF EXISTS sync_state")
             }
         }
     }
